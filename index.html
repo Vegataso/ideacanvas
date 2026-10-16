@@ -426,7 +426,6 @@
         const boardSelect = document.getElementById('board-select');
         const drawCanvas = document.getElementById('drawing-canvas');
         const ctx = drawCanvas.getContext('2d');
-
         window.addEventListener('DOMContentLoaded', () => {
             setupTheme();
             setupEventListeners();
@@ -441,7 +440,6 @@
             document.addEventListener('gestureend', (e) => e.preventDefault());
         });
 
-        // ボード全体・アイテム単位のピンチズーム共通制御
         function setupPinchZoom() {
             let activeTouches = new Map();
             let initialDist = 0;
@@ -449,13 +447,13 @@
             let initialItemW = 0;
             let initialItemH = 0;
             let targetItem = null;
+            let itemAspect = 1.0;
 
             boardContainer.addEventListener('pointerdown', (e) => {
                 if (e.pointerType === 'touch') {
                     activeTouches.set(e.pointerId, { x: e.clientX, y: e.clientY });
                     
                     if (activeTouches.size === 2) {
-                        // 2本指が触れた瞬間、どちらかの指がどのアイテムの上にあるか判定
                         const touches = Array.from(activeTouches.values());
                         const itemEl = document.elementFromPoint(touches[0].x, touches[0].y)?.closest('.board-item') ||
                                        document.elementFromPoint(touches[1].x, touches[1].y)?.closest('.board-item');
@@ -466,6 +464,7 @@
                             if (targetItem) {
                                 initialItemW = targetItem.w;
                                 initialItemH = targetItem.h;
+                                itemAspect = targetItem.w / targetItem.h; // アスペクト比を保持
                             }
                         } else {
                             targetItem = null;
@@ -491,21 +490,36 @@
                             if (targetItem) {
                                 initialItemW = targetItem.w;
                                 initialItemH = targetItem.h;
+                                itemAspect = targetItem.w / targetItem.h;
                             }
                         } else if (initialDist > 10) {
                             const scaleFactor = dist / initialDist;
 
                             if (targetItem) {
-                                // 【アイテム単位のピンチズーム】
-                                const newW = Math.max(80, Math.round(initialItemW * scaleFactor));
-                                const newH = Math.max(60, Math.round(initialItemH * scaleFactor));
-                                targetItem.w = newW;
-                                targetItem.h = newH;
-                                
-                                const itemEl = boardCanvas.querySelector(`[data-id="${targetItem.id}"]`);
-                                if (itemEl) {
-                                    itemEl.style.width = `${newW}px`;
-                                    itemEl.style.height = `${newH}px`;
+                                // 【画像・付箋のピンチズーム（アスペクト比固定）】
+                                if (targetItem.type === 'image') {
+                                    const newW = Math.max(100, Math.round(initialItemW * scaleFactor));
+                                    const newH = Math.round(newW / itemAspect); // 縦横比を固定
+                                    targetItem.w = newW;
+                                    targetItem.h = newH;
+                                    
+                                    const itemEl = boardCanvas.querySelector(`[data-id="${targetItem.id}"]`);
+                                    if (itemEl) {
+                                        itemEl.style.width = `${newW}px`;
+                                        itemEl.style.height = `${newH}px`;
+                                    }
+                                } else {
+                                    // 付箋やグループは自由変形も許可
+                                    const newW = Math.max(80, Math.round(initialItemW * scaleFactor));
+                                    const newH = Math.max(60, Math.round(initialItemH * scaleFactor));
+                                    targetItem.w = newW;
+                                    targetItem.h = newH;
+                                    
+                                    const itemEl = boardCanvas.querySelector(`[data-id="${targetItem.id}"]`);
+                                    if (itemEl) {
+                                        itemEl.style.width = `${newW}px`;
+                                        itemEl.style.height = `${newH}px`;
+                                    }
                                 }
                             } else {
                                 // 【ボード全体のピンチズーム】
@@ -1104,7 +1118,15 @@
                     rotBtn.innerHTML = '<i class="fa-solid fa-rotate-right"></i>';
                     rotBtn.addEventListener('click', (e) => {
                         e.stopPropagation();
+                        // Rotate the frame as well, preserving the image's displayed size.
+                        const oldW = item.w;
+                        item.w = item.h;
+                        item.h = oldW;
                         item.rotation = (item.rotation + 90) % 360;
+                        // Reset pan/zoom so the image stays fully visible after rotation.
+                        item.imageZoom = 1;
+                        item.imagePanX = 0;
+                        item.imagePanY = 0;
                         renderBoard();
                         recordHistory();
                         saveToLocalStorage();
@@ -1139,13 +1161,127 @@
                     el.appendChild(header);
 
                     const imgContainer = document.createElement('div');
-                    imgContainer.className = 'w-full h-full overflow-hidden rounded-xl flex items-center justify-center';
+                    imgContainer.className = 'relative w-full h-full min-h-0 overflow-hidden rounded-xl flex items-center justify-center';
 
                     const img = document.createElement('img');
                     img.src = item.url;
-                    img.className = 'w-full h-full object-cover rounded-xl pointer-events-none transition-transform duration-200';
-                    img.style.transform = `rotate(${item.rotation}deg) scaleX(${item.flipX ? -1 : 1})`;
-                    
+                    img.className = 'object-contain rounded-xl pointer-events-none transition-transform duration-200';
+                    img.style.position = 'absolute';
+                    img.style.left = '50%';
+                    img.style.top = '50%';
+                    img.style.maxWidth = 'none';
+                    img.style.maxHeight = 'none';
+                    img.style.transformOrigin = 'center center';
+                    if (item.imagePanX === undefined) item.imagePanX = 0;
+                    if (item.imagePanY === undefined) item.imagePanY = 0;
+                    if (item.imageZoom === undefined) item.imageZoom = 1;
+                    const applyImageTransform = () => {
+                        // The frame swaps dimensions on quarter-turns; swap the image's CSS box back
+                        // before rotation so the visible image keeps the same scale.
+                        const rotated = item.rotation === 90 || item.rotation === 270;
+                        img.style.width = `${rotated ? item.h : item.w}px`;
+                        img.style.height = `${rotated ? item.w : item.h}px`;
+                        // Pan is applied in screen pixels; zoom changes only the image, not its frame.
+                        img.style.transform = `translate(calc(-50% + ${item.imagePanX}px), calc(-50% + ${item.imagePanY}px)) rotate(${item.rotation}deg) scaleX(${item.flipX ? -1 : 1}) scale(${item.imageZoom || 1})`;
+                    };
+                    applyImageTransform();
+
+                    // Double-click / double-tap zooms only the image content, not its frame.
+                    // Pointer capture is set on the board item for dragging, so listen on `el`
+                    // rather than imgContainer; otherwise pointerup can be retargeted away.
+                    let lastImageTap = 0;
+                    let lastTapX = 0;
+                    let lastTapY = 0;
+                    let panPointerId = null;
+                    let panStartX = 0;
+                    let panStartY = 0;
+                    let panOriginX = 0;
+                    let panOriginY = 0;
+                    let imageDidPan = false;
+                    const toggleImageZoom = () => {
+                        item.imageZoom = (item.imageZoom || 1) > 1 ? 1 : 2;
+                        if (item.imageZoom === 1) {
+                            item.imagePanX = 0;
+                            item.imagePanY = 0;
+                        }
+                        applyImageTransform();
+                        recordHistory();
+                        saveToLocalStorage();
+                        showToast(item.imageZoom > 1 ? '画像を2倍に拡大しました' : '画像の拡大を解除しました');
+                    };
+                    const isInsideImage = (e) => {
+                        const r = imgContainer.getBoundingClientRect();
+                        return e.clientX >= r.left && e.clientX <= r.right &&
+                               e.clientY >= r.top && e.clientY <= r.bottom;
+                    };
+                    // Desktop: use the second click's detail count. This is more reliable when
+                    // the board item captures pointer events for dragging.
+                    el.addEventListener('click', (e) => {
+                        if (e.detail !== 2 || !isInsideImage(e) || e.target.closest('button')) return;
+                        e.preventDefault();
+                        e.stopPropagation();
+                        toggleImageZoom();
+                    });
+                    // When zoomed, drag inside the image to pan its contents without moving the frame.
+                    imgContainer.addEventListener('pointerdown', (e) => {
+                        if ((item.imageZoom || 1) <= 1 || e.target.closest('button')) return;
+                        e.stopPropagation();
+                        panPointerId = e.pointerId;
+                        panStartX = e.clientX;
+                        panStartY = e.clientY;
+                        panOriginX = item.imagePanX || 0;
+                        panOriginY = item.imagePanY || 0;
+                        imageDidPan = false;
+                        imgContainer.setPointerCapture(e.pointerId);
+                    });
+                    imgContainer.addEventListener('pointermove', (e) => {
+                        if (panPointerId !== e.pointerId || (item.imageZoom || 1) <= 1) return;
+                        e.stopPropagation();
+                        const dx = e.clientX - panStartX;
+                        const dy = e.clientY - panStartY;
+                        if (Math.abs(dx) + Math.abs(dy) > 3) imageDidPan = true;
+                        const rect = imgContainer.getBoundingClientRect();
+                        const maxX = rect.width * ((item.imageZoom || 1) - 1) / 2;
+                        const maxY = rect.height * ((item.imageZoom || 1) - 1) / 2;
+                        item.imagePanX = Math.max(-maxX, Math.min(maxX, panOriginX + dx));
+                        item.imagePanY = Math.max(-maxY, Math.min(maxY, panOriginY + dy));
+                        applyImageTransform();
+                    });
+                    const finishImagePan = (e) => {
+                        if (panPointerId !== e.pointerId) return;
+                        e.stopPropagation();
+                        if (imgContainer.hasPointerCapture(e.pointerId)) imgContainer.releasePointerCapture(e.pointerId);
+                        panPointerId = null;
+                        if (imageDidPan) {
+                            recordHistory();
+                            saveToLocalStorage();
+                            lastImageTap = 0;
+                        }
+                    };
+                    imgContainer.addEventListener('pointerup', finishImagePan);
+                    imgContainer.addEventListener('pointercancel', finishImagePan);
+
+                    // Touch devices: detect two taps close together. Listen on `el` because
+                    // makeItemDraggableAndResizable captures the pointer on that element.
+                    el.addEventListener('pointerup', (e) => {
+                        if (imageDidPan) {
+                            imageDidPan = false;
+                            return;
+                        }
+                        if (e.pointerType !== 'touch' || !isInsideImage(e)) return;
+                        const now = Date.now();
+                        const closeEnough = Math.hypot(e.clientX - lastTapX, e.clientY - lastTapY) < 32;
+                        if (now - lastImageTap < 450 && closeEnough) {
+                            e.preventDefault();
+                            toggleImageZoom();
+                            lastImageTap = 0;
+                        } else {
+                            lastImageTap = now;
+                            lastTapX = e.clientX;
+                            lastTapY = e.clientY;
+                        }
+                    });
+
                     imgContainer.appendChild(img);
                     el.appendChild(imgContainer);
                 }
@@ -1163,12 +1299,14 @@
             let isDragging = false;
             let isResizing = false;
             let startX, startY, startW, startH, startLeft, startTop;
+            let itemAspect = item.w / item.h;
             let childItems = [];
 
             el.addEventListener('pointerdown', (e) => {
                 if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'BUTTON' || e.target.closest('button')) return;
                 
                 state.selectedItemId = item.id;
+                itemAspect = item.w / item.h;
                 
                 if (item.type !== 'group') {
                     item.zIndex = ++state.maxZIndex;
@@ -1178,8 +1316,12 @@
                 document.querySelectorAll('.board-item').forEach(iEl => iEl.classList.remove('selected'));
                 el.classList.add('selected');
 
-                if (e.target === handle) {
+                if (e.target === handle || e.target.closest('.resize-handle')) {
+                    // Keep the bottom-right resize handle reliable even if a child element
+                    // receives the pointer event first.
                     isResizing = true;
+                    isDragging = false;
+                    e.preventDefault();
                 } else {
                     isDragging = true;
                 }
@@ -1240,25 +1382,61 @@
                         });
                     }
                 } else if (isResizing) {
-                    item.w = Math.max(160, startW + dx);
-                    item.h = Math.max(120, startH + dy);
-                    el.style.width = `${item.w}px`;
-                    el.style.height = `${item.h}px`;
+                    if (item.type === 'image') {
+                        // 【画像のハンドルリサイズ時：アスペクト比を完全固定】
+                        const newW = Math.max(100, startW + dx);
+                        const newH = Math.round(newW / itemAspect);
+                        item.w = newW;
+                        item.h = newH;
+                        el.style.width = `${newW}px`;
+                        el.style.height = `${newH}px`;
+                        // Keep the image content in sync with its frame while resizing.
+                        // The image is absolutely positioned, so changing only the frame
+                        // dimensions would otherwise leave the displayed image at its old size.
+                        const imageEl = el.querySelector('img');
+                        if (imageEl) {
+                            const rotated = item.rotation === 90 || item.rotation === 270;
+                            imageEl.style.width = `${rotated ? item.h : item.w}px`;
+                            imageEl.style.height = `${rotated ? item.w : item.h}px`;
+                        }
+                    } else {
+                        item.w = Math.max(160, startW + dx);
+                        item.h = Math.max(120, startH + dy);
+                        el.style.width = `${item.w}px`;
+                        el.style.height = `${item.h}px`;
 
-                    if (item.type === 'group' && childItems.length > 0) {
-                        childItems.forEach(child => {
-                            child.item.x = item.x + (child.relX * item.w);
-                            child.item.y = item.y + (child.relY * item.h);
-                            child.item.w = Math.max(80, child.relW * item.w);
-                            child.item.h = Math.max(60, child.relH * item.h);
+                        if (item.type === 'group' && childItems.length > 0) {
+                            const scaleX = item.w / startW;
+                            const scaleY = item.h / startH;
+                            childItems.forEach(child => {
+                                child.item.x = item.x + (child.relX * item.w);
+                                child.item.y = item.y + (child.relY * item.h);
 
-                            if (child.el) {
-                                child.el.style.left = `${child.item.x}px`;
-                                child.el.style.top = `${child.item.y}px`;
-                                child.el.style.width = `${child.item.w}px`;
-                                child.el.style.height = `${child.item.h}px`;
-                            }
-                        });
+                                if (child.item.type === 'image') {
+                                    // Scale image frames uniformly so group resizing never distorts their aspect ratio.
+                                    const uniformScale = Math.min(scaleX, scaleY);
+                                    child.item.w = Math.max(80, child.startW * uniformScale);
+                                    child.item.h = Math.max(60, child.startH * uniformScale);
+                                    // Keep the original ratio even when minimum-size limits apply.
+                                    const childAspect = child.startW / child.startH;
+                                    if (child.item.w / child.item.h > childAspect) {
+                                        child.item.w = child.item.h * childAspect;
+                                    } else {
+                                        child.item.h = child.item.w / childAspect;
+                                    }
+                                } else {
+                                    child.item.w = Math.max(80, child.relW * item.w);
+                                    child.item.h = Math.max(60, child.relH * item.h);
+                                }
+
+                                if (child.el) {
+                                    child.el.style.left = `${child.item.x}px`;
+                                    child.el.style.top = `${child.item.y}px`;
+                                    child.el.style.width = `${child.item.w}px`;
+                                    child.el.style.height = `${child.item.h}px`;
+                                }
+                            });
+                        }
                     }
                 }
             });
