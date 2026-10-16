@@ -1115,10 +1115,10 @@
                     if (item.flipX === undefined) item.flipX = false;
 
                     const header = document.createElement('div');
-                    header.className = 'absolute top-2 right-2 z-20 flex items-center space-x-1 bg-black/60 backdrop-blur-md rounded-lg p-1 shadow-md';
+                    header.className = 'image-controls absolute top-2 right-2 z-20 flex items-center space-x-1 bg-black/60 backdrop-blur-md rounded-lg p-1 shadow-md';
 
                     const rotBtn = document.createElement('button');
-                    rotBtn.className = 'text-white/80 hover:text-white px-1.5 py-0.5 text-xs transition';
+                    rotBtn.className = 'text-white/80 hover:text-white px-1.5 py-0.5 text-xs transition min-w-[32px] min-h-[32px] flex items-center justify-center';
                     rotBtn.title = '90°回転';
                     rotBtn.innerHTML = '<i class="fa-solid fa-rotate-right"></i>';
                     rotBtn.addEventListener('click', (e) => {
@@ -1138,7 +1138,7 @@
                     });
 
                     const flipBtn = document.createElement('button');
-                    flipBtn.className = 'text-white/80 hover:text-white px-1.5 py-0.5 text-xs transition';
+                    flipBtn.className = 'text-white/80 hover:text-white px-1.5 py-0.5 text-xs transition min-w-[32px] min-h-[32px] flex items-center justify-center';
                     flipBtn.title = '左右反転';
                     flipBtn.innerHTML = '<i class="fa-solid fa-arrows-left-right"></i>';
                     flipBtn.addEventListener('click', (e) => {
@@ -1150,7 +1150,7 @@
                     });
 
                     const delBtn = document.createElement('button');
-                    delBtn.className = 'text-white/80 hover:text-red-400 px-1.5 py-0.5 text-xs transition';
+                    delBtn.className = 'text-white/80 hover:text-red-400 px-1.5 py-0.5 text-xs transition min-w-[32px] min-h-[32px] flex items-center justify-center';
                     delBtn.innerHTML = '<i class="fa-solid fa-xmark"></i>';
                     delBtn.addEventListener('click', (e) => {
                         e.stopPropagation();
@@ -1200,6 +1200,7 @@
                     // Pointer capture is set on the board item for dragging, so listen on `el`
                     // rather than imgContainer; otherwise pointerup can be retargeted away.
                     let lastImageTap = 0;
+                    let lastTouchToggleAt = 0;
                     let lastTapX = 0;
                     let lastTapY = 0;
                     let panPointerId = null;
@@ -1227,6 +1228,9 @@
                     // Desktop: use the second click's detail count. This is more reliable when
                     // the board item captures pointer events for dragging.
                     el.addEventListener('click', (e) => {
+                        // iPad Safari may synthesize click events after touchend. Ignore a
+                        // synthetic double-click shortly after the touch handler toggles zoom.
+                        if (Date.now() - lastTouchToggleAt < 700) return;
                         if (e.detail !== 2 || !isInsideImage(e) || e.target.closest('button')) return;
                         e.preventDefault();
                         e.stopPropagation();
@@ -1271,26 +1275,36 @@
                     imgContainer.addEventListener('pointerup', finishImagePan);
                     imgContainer.addEventListener('pointercancel', finishImagePan);
 
-                    // Touch devices: detect two taps close together. Listen on `el` because
-                    // makeItemDraggableAndResizable captures the pointer on that element.
-                    el.addEventListener('pointerup', (e) => {
+                    // iPad/iPhone: use native touchend for double-tap detection. Pointer capture
+                    // used by the drag handler can retarget pointerup events in Safari, making
+                    // the second tap unreliable. touchend coordinates are taken from changedTouches.
+                    el.addEventListener('touchend', (e) => {
                         if (imageDidPan) {
                             imageDidPan = false;
+                            lastImageTap = 0;
                             return;
                         }
-                        if (e.pointerType !== 'touch' || !isInsideImage(e)) return;
+                        if (e.changedTouches.length !== 1 || e.target.closest('button')) return;
+                        const touch = e.changedTouches[0];
+                        const x = touch.clientX;
+                        const y = touch.clientY;
+                        const r = imgContainer.getBoundingClientRect();
+                        const inside = x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+                        if (!inside) return;
                         const now = Date.now();
-                        const closeEnough = Math.hypot(e.clientX - lastTapX, e.clientY - lastTapY) < 32;
-                        if (now - lastImageTap < 450 && closeEnough) {
+                        const closeEnough = Math.hypot(x - lastTapX, y - lastTapY) < 40;
+                        if (now - lastImageTap < 500 && closeEnough) {
                             e.preventDefault();
+                            e.stopPropagation();
+                            lastTouchToggleAt = now;
                             toggleImageZoom();
                             lastImageTap = 0;
                         } else {
                             lastImageTap = now;
-                            lastTapX = e.clientX;
-                            lastTapY = e.clientY;
+                            lastTapX = x;
+                            lastTapY = y;
                         }
-                    });
+                    }, { passive: false });
 
                     imgContainer.appendChild(img);
                     el.appendChild(imgContainer);
@@ -1305,6 +1319,11 @@
                 makeItemDraggableAndResizable(el, item, handle);
                 boardCanvas.appendChild(el);
             });
+
+            // renderBoard recreates image controls and resize handles.
+            // Reapply inverse zoom after every render so they stay screen-sized
+            // after rotation, flip, selection changes, undo/redo, etc.
+            applyZoom();
         }
 
         function makeItemDraggableAndResizable(el, item, handle) {
@@ -1625,6 +1644,19 @@
 
         function applyZoom() {
             boardCanvas.style.transform = `scale(${state.zoom})`;
+
+            // Keep image controls and resize handles comfortably sized on screen,
+            // regardless of the board's zoom level.
+            const counterScale = 1 / state.zoom;
+            boardCanvas.querySelectorAll('.image-controls').forEach((controls) => {
+                controls.style.transform = `scale(${counterScale})`;
+                controls.style.transformOrigin = 'top right';
+            });
+            boardCanvas.querySelectorAll('.resize-handle').forEach((handle) => {
+                handle.style.transform = `scale(${counterScale})`;
+                handle.style.transformOrigin = 'bottom right';
+            });
+
             document.getElementById('btn-zoom-reset').textContent = `${Math.round(state.zoom * 100)}%`;
         }
 
