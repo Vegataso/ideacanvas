@@ -82,7 +82,7 @@
             cursor: nwse-resize;
             opacity: 0.8;
             transition: opacity 0.2s ease;
-            z-index: 10;
+            z-index: 20;
         }
         .board-item:hover .resize-handle,
         .board-item.selected .resize-handle {
@@ -101,24 +101,6 @@
         #drawing-canvas.active {
             pointer-events: auto;
             cursor: crosshair;
-        }
-
-        /* Drop Zone Indicator */
-        #board-container.drag-over::after {
-            content: "ここに画像をドロップして追加";
-            position: absolute;
-            inset: 0;
-            background: rgba(14, 165, 233, 0.15);
-            border: 4px dashed #0ea5e9;
-            z-index: 40;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.5rem;
-            font-weight: bold;
-            color: #0ea5e9;
-            backdrop-filter: blur(2px);
-            pointer-events: none;
         }
 
         /* Custom Scrollbars */
@@ -204,29 +186,38 @@
         <div class="absolute left-4 top-4 z-20 flex flex-col space-y-3 bg-white/90 dark:bg-slate-800/90 backdrop-blur-md p-2 rounded-2xl shadow-xl border border-slate-200/80 dark:border-slate-700/80">
             <!-- Add Sticky Note Button -->
             <div class="group relative">
-                <button id="btn-add-note" class="w-12 h-12 flex items-center justify-center bg-amber-400 hover:bg-amber-500 text-amber-950 rounded-xl shadow-md transition active:scale-95">
+                <button id="btn-add-note" title="付箋を追加" class="w-12 h-12 flex items-center justify-center bg-amber-400 hover:bg-amber-500 text-amber-950 rounded-xl shadow-md transition active:scale-95">
                     <i class="fa-solid fa-plus text-xl"></i>
                 </button>
             </div>
 
             <!-- Add Image Button -->
             <div class="group relative">
-                <button id="btn-add-image" class="w-12 h-12 flex items-center justify-center bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-xl transition active:scale-95">
+                <button id="btn-add-image" title="画像を追加" class="w-12 h-12 flex items-center justify-center bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-xl transition active:scale-95">
                     <i class="fa-regular fa-image text-xl"></i>
                 </button>
             </div>
 
             <!-- Add Group Frame Button -->
             <div class="group relative">
-                <button id="btn-add-group" class="w-12 h-12 flex items-center justify-center bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-sky-600 dark:text-sky-400 rounded-xl transition active:scale-95">
+                <button id="btn-add-group" title="グループ枠を追加" class="w-12 h-12 flex items-center justify-center bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-sky-600 dark:text-sky-400 rounded-xl transition active:scale-95">
                     <i class="fa-solid fa-vector-square text-xl"></i>
                 </button>
             </div>
 
             <!-- Pen Tool Button -->
             <div class="group relative">
-                <button id="btn-toggle-pen" class="w-12 h-12 flex items-center justify-center bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-xl transition active:scale-95">
+                <button id="btn-toggle-pen" title="手書きペン" class="w-12 h-12 flex items-center justify-center bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-xl transition active:scale-95">
                     <i class="fa-solid fa-pen text-lg"></i>
+                </button>
+            </div>
+
+            <div class="h-1 w-[80%] bg-slate-200 dark:bg-slate-700 mx-auto rounded-full"></div>
+
+            <!-- URLから追加ボタン -->
+            <div class="group relative">
+                <button id="btn-import-url" title="共有URLからボードを追加" class="w-12 h-12 flex items-center justify-center bg-blue-100 hover:bg-blue-200 dark:bg-blue-950/40 dark:hover:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-xl transition active:scale-95">
+                    <i class="fa-solid fa-cloud-arrow-down text-lg"></i>
                 </button>
             </div>
 
@@ -278,8 +269,8 @@
             </button>
         </div>
 
-        <!-- Hidden File Input for Image Upload -->
-        <input type="file" id="file-image-upload" accept="image/*" class="hidden" />
+        <!-- ★複数ファイル選択に対応 (multiple属性追加) -->
+        <input type="file" id="file-image-upload" accept="image/*" multiple class="hidden" />
 
         <!-- Canvas Board Container -->
         <div id="board-container" class="w-full h-full relative overflow-auto bg-grid-pattern-light dark:bg-grid-pattern-dark">
@@ -300,10 +291,10 @@
                 
                 <div class="space-y-4">
                     <div>
-                        <label class="block text-sm font-medium text-slate-600 dark:text-slate-400 mb-1">端末から画像をアップロード</label>
+                        <label class="block text-sm font-medium text-slate-600 dark:text-slate-400 mb-1">端末から画像をアップロード（複数可）</label>
                         <button id="modal-upload-btn" class="w-full py-3 px-4 border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-xl text-slate-600 dark:text-slate-300 hover:border-sky-500 hover:text-sky-500 transition flex items-center justify-center space-x-2">
                             <i class="fa-solid fa-cloud-arrow-up"></i>
-                            <span>写真・ファイルを選択</span>
+                            <span>写真・ファイルをまとめて選択</span>
                         </button>
                     </div>
 
@@ -326,7 +317,7 @@
             </div>
         </div>
 
-        <!-- Toast Notification Area (左下に配置) -->
+        <!-- Toast Notification Area -->
         <div id="toast" class="fixed bottom-6 left-6 z-50 transform translate-y-10 opacity-0 pointer-events-none transition-all duration-300 flex items-center space-x-2 bg-slate-900 text-white dark:bg-white dark:text-slate-900 px-4 py-3 rounded-xl shadow-2xl">
             <i id="toast-icon" class="fa-solid fa-circle-check text-emerald-400 dark:text-emerald-600"></i>
             <span id="toast-message" class="text-sm font-medium">通知メッセージ</span>
@@ -366,12 +357,12 @@
         };
 
         const groupColorPresets = {
-            yellow: "bg-amber-50/50 dark:bg-amber-950/20 border-amber-400/80 dark:border-amber-600/80",
-            pink: "bg-pink-50/50 dark:bg-pink-950/20 border-pink-400/80 dark:border-pink-600/80",
-            green: "bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-400/80 dark:border-emerald-600/80",
-            blue: "bg-sky-50/50 dark:bg-sky-950/20 border-sky-400/80 dark:border-sky-600/80",
-            purple: "bg-purple-50/50 dark:bg-purple-950/20 border-purple-400/80 dark:border-purple-600/80",
-            white: "bg-slate-50/50 dark:bg-slate-900/40 border-slate-400/80 dark:border-slate-600/80"
+            yellow: "bg-amber-50/40 dark:bg-amber-950/20 border-amber-400/70 dark:border-amber-600/70",
+            pink: "bg-pink-50/40 dark:bg-pink-950/20 border-pink-400/70 dark:border-pink-600/70",
+            green: "bg-emerald-50/40 dark:bg-emerald-950/20 border-emerald-400/70 dark:border-emerald-600/70",
+            blue: "bg-sky-50/40 dark:bg-sky-950/20 border-sky-400/70 dark:border-sky-600/70",
+            purple: "bg-purple-50/40 dark:bg-purple-950/20 border-purple-400/70 dark:border-purple-600/70",
+            white: "bg-slate-50/40 dark:bg-slate-900/30 border-slate-400/70 dark:border-slate-600/70"
         };
 
         const boardCanvas = document.getElementById('board-canvas');
@@ -387,18 +378,14 @@
             setupDragAndDrop();
             setupPenDrawing();
             setupZoomAndScroll();
-            setupPinchZoom(); // 2本指ピンチズーム対応
-            
+            setupPinchZoom();
             initMultiBoardStorage();
         });
 
-        // 2本指ピンチイン・ピンチアウト & パンジェスチャーの制御
         function setupPinchZoom() {
             let activeTouches = new Map();
             let initialDist = 0;
             let initialZoom = 1.0;
-            let initialMidX = 0;
-            let initialMidY = 0;
 
             boardContainer.addEventListener('pointerdown', (e) => {
                 if (e.pointerType === 'touch') {
@@ -416,14 +403,9 @@
                         const dy = touches[0].y - touches[1].y;
                         const dist = Math.sqrt(dx * dx + dy * dy);
 
-                        const midX = (touches[0].x + touches[1].x) / 2;
-                        const midY = (touches[0].y + touches[1].y) / 2;
-
                         if (initialDist === 0) {
                             initialDist = dist;
                             initialZoom = state.zoom;
-                            initialMidX = midX;
-                            initialMidY = midY;
                         } else if (initialDist > 10) {
                             const scaleFactor = dist / initialDist;
                             const newZoom = Math.min(2.0, Math.max(0.4, initialZoom * scaleFactor));
@@ -532,8 +514,8 @@
 
             if (isDefault) {
                 addGroupItem(60, 60, "📁 企画メモグループ", "blue", 600, 360);
-                addStickyNote(90, 140, "💡 アイデア出し\n・2本指でのピンチイン・アウトに対応\n・Apple Pencil / タッチ操作対応", "yellow", 240, 180);
-                addStickyNote(360, 140, "🚀 実装タスク\n1. ボード切替・新規作成\n2. ピンチズーム操作の追加", "blue", 240, 180);
+                addStickyNote(90, 140, "💡 アイデア出し\n・ピンチイン・アウト対応\n・タッチ操作対応", "yellow", 240, 180);
+                addStickyNote(360, 140, "🚀 タスク\n1. ボード切替・新規作成\n2. ズーム操作", "blue", 240, 180);
             }
 
             boardTitleInput.value = state.title;
@@ -669,91 +651,620 @@
                 }
             });
 
+            document.getElementById('btn-import-url').addEventListener('click', () => {
+                const inputUrl = prompt("共有されたIdeaCanvasのURL（#data=...を含むURL）を入力してください：");
+                if (inputUrl) {
+                    try {
+                        const hashIndex = inputUrl.indexOf('#data=');
+                        if (hashIndex !== -1) {
+                            const dataStr = inputUrl.substring(hashIndex + 6);
+                            const jsonStr = LZString.decompressFromEncodedURIComponent(dataStr);
+                            const data = JSON.parse(jsonStr);
+                            const newId = 'board_' + Date.now();
+                            appState.boards[newId] = {
+                                id: newId,
+                                title: data.title || "インポートボード",
+                                items: data.items || [],
+                                drawings: data.drawings || [],
+                                maxZIndex: 10,
+                                zoom: 1.0
+                            };
+                            switchBoard(newId);
+                            showToast('URLからボードを追加しました！');
+                        } else {
+                            alert('有効な共有URLではありません。');
+                        }
+                    } catch (e) {
+                        alert('ボードデータの読み込みに失敗しました。');
+                    }
+                }
+            });
+
+            document.getElementById('btn-share').addEventListener('click', () => {
+                const dataStr = LZString.compressToEncodedURIComponent(JSON.stringify({
+                    title: state.title,
+                    items: state.items,
+                    drawings: state.drawings
+                }));
+                const url = `${window.location.origin}${window.location.pathname}#data=${dataStr}`;
+                navigator.clipboard.writeText(url).then(() => {
+                    showToast('共有URLをコピーしました！');
+                }).catch(() => {
+                    prompt('以下のURLをコピーしてください：', url);
+                });
+            });
+
+            document.getElementById('btn-export-json').addEventListener('click', () => {
+                const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({
+                    title: state.title,
+                    items: state.items,
+                    drawings: state.drawings
+                }));
+                const dlAnchor = document.createElement('a');
+                dlAnchor.setAttribute("href", dataStr);
+                dlAnchor.setAttribute("download", `${state.title || 'ideacanvas'}.json`);
+                document.body.appendChild(dlAnchor);
+                dlAnchor.click();
+                dlAnchor.remove();
+                showToast('JSONファイルを書き出しました');
+            });
+
+            document.getElementById('btn-import-trigger').addEventListener('click', () => {
+                document.getElementById('file-import-json').click();
+            });
+
+            document.getElementById('file-import-json').addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    try {
+                        const data = JSON.parse(event.target.result);
+                        state.items = data.items || [];
+                        state.drawings = data.drawings || [];
+                        if (data.title) {
+                            state.title = data.title;
+                            boardTitleInput.value = state.title;
+                        }
+                        renderBoard();
+                        redrawCanvas();
+                        saveToLocalStorage();
+                        showToast('JSONファイルを読み込みました');
+                    } catch (err) {
+                        alert('ファイルの読み込みに失敗しました。');
+                    }
+                };
+                reader.readAsText(file);
+            });
+
             document.getElementById('btn-clear').addEventListener('click', () => {
-                if (confirm('現在のボード上のすべてのアイテムと手書き描画を削除しますか？')) {
+                if (confirm('現在のボードの全アイテムと描画をクリアしますか？')) {
                     state.items = [];
                     state.drawings = [];
-                    state.redoStack = [];
-                    redrawCanvas();
                     renderBoard();
+                    redrawCanvas();
                     saveToLocalStorage();
                     showToast('ボードをクリアしました');
                 }
             });
 
-            document.getElementById('btn-share').addEventListener('click', generateShareURL);
-            document.getElementById('btn-export-json').addEventListener('click', exportJSON);
-            document.getElementById('btn-import-trigger').addEventListener('click', () => {
-                document.getElementById('file-import-json').click();
+            boardContainer.addEventListener('pointerdown', (e) => {
+                if (e.target === boardContainer || e.target === boardCanvas) {
+                    state.selectedItemId = null;
+                    document.querySelectorAll('.board-item').forEach(el => el.classList.remove('selected'));
+                }
             });
-            document.getElementById('file-import-json').addEventListener('change', importJSON);
+        }
 
-            boardCanvas.addEventListener('pointerdown', (e) => {
-                if (e.target === boardCanvas || e.target === drawCanvas) {
-                    deselectAll();
+        function addStickyNote(x, y, text = "", color = state.selectedColor, w = 240, h = 180) {
+            const item = {
+                id: 'item_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+                type: 'note',
+                x, y, w, h,
+                text,
+                content: "",
+                color,
+                zIndex: ++state.maxZIndex
+            };
+            state.items.push(item);
+            renderBoard();
+            saveToLocalStorage();
+        }
+
+        function addGroupItem(x, y, text = "グループ", color = state.selectedColor, w = 480, h = 320) {
+            const item = {
+                id: 'item_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+                type: 'group',
+                x, y, w, h,
+                text,
+                color,
+                zIndex: 1
+            };
+            state.items.push(item);
+            renderBoard();
+            saveToLocalStorage();
+        }
+
+        function addImageItem(x, y, url, w = 280, h = 200) {
+            const item = {
+                id: 'item_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+                type: 'image',
+                x, y, w, h,
+                url,
+                rotation: 0,
+                flipX: false,
+                zIndex: ++state.maxZIndex
+            };
+            state.items.push(item);
+            renderBoard();
+            saveToLocalStorage();
+        }
+
+        // ★複数画像アップロード処理（複数枚まとめて順次読み込み）
+        function handleImageUpload(e) {
+            const files = Array.from(e.target.files);
+            if (!files.length) return;
+
+            const baseScrollX = boardContainer.scrollLeft / state.zoom + 120;
+            const baseScrollY = boardContainer.scrollTop / state.zoom + 120;
+
+            let loadedCount = 0;
+            files.forEach((file, index) => {
+                if (!file.type.startsWith('image/')) return;
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    // 少しずつ右下にずらして重ならないように配置
+                    const offsetX = (index % 5) * 30;
+                    const offsetY = Math.floor(index / 5) * 30;
+                    addImageItem(baseScrollX + offsetX, baseScrollY + offsetY, event.target.result);
+                    
+                    loadedCount++;
+                    if (loadedCount === files.length) {
+                        document.getElementById('image-modal').classList.add('hidden');
+                        showToast(`${files.length}枚の画像を追加しました`);
+                    }
+                };
+                reader.readAsDataURL(file);
+            });
+            e.target.value = ''; // 次回同じファイルを選べるようにリセット
+        }
+
+        // 描画処理
+        function renderBoard() {
+            const existingItems = boardCanvas.querySelectorAll('.board-item');
+            existingItems.forEach(el => el.remove());
+
+            const sortedItems = [...state.items].sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0));
+
+            sortedItems.forEach(item => {
+                const el = document.createElement('div');
+                el.className = `board-item absolute rounded-2xl border p-4 flex flex-col ${item.type === 'group' ? (groupColorPresets[item.color] || groupColorPresets.blue) : (colorPresets[item.color] || colorPresets.yellow)} ${state.selectedItemId === item.id ? 'selected' : ''}`;
+                el.style.left = `${item.x}px`;
+                el.style.top = `${item.y}px`;
+                el.style.width = `${item.w}px`;
+                el.style.height = `${item.h}px`;
+                el.style.zIndex = item.zIndex || 1;
+                el.dataset.id = item.id;
+                el.dataset.type = item.type;
+
+                if (item.type === 'note') {
+                    const header = document.createElement('div');
+                    header.className = 'flex items-center justify-between mb-2 cursor-move drag-handle';
+                    
+                    const title = document.createElement('input');
+                    title.type = 'text';
+                    title.value = item.text || '';
+                    title.placeholder = 'タイトル...';
+                    title.className = 'bg-transparent font-semibold border-none focus:outline-none w-full text-base';
+                    title.addEventListener('input', (e) => {
+                        item.text = e.target.value;
+                        saveToLocalStorage();
+                    });
+
+                    const delBtn = document.createElement('button');
+                    delBtn.className = 'text-slate-400 hover:text-red-500 p-1 text-xs transition shrink-0';
+                    delBtn.innerHTML = '<i class="fa-solid fa-xmark"></i>';
+                    delBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        state.items = state.items.filter(i => i.id !== item.id);
+                        renderBoard();
+                        saveToLocalStorage();
+                    });
+
+                    header.appendChild(title);
+                    header.appendChild(delBtn);
+                    el.appendChild(header);
+
+                    const textarea = document.createElement('textarea');
+                    textarea.className = 'bg-transparent border-none focus:outline-none w-full h-full resize-none text-sm';
+                    textarea.placeholder = 'メモの内容を入力...';
+                    textarea.value = item.content || '';
+                    textarea.addEventListener('input', (e) => {
+                        item.content = e.target.value;
+                        saveToLocalStorage();
+                    });
+                    el.appendChild(textarea);
+
+                } else if (item.type === 'group') {
+                    const header = document.createElement('div');
+                    header.className = 'flex items-center justify-between mb-2 cursor-move drag-handle';
+                    
+                    const title = document.createElement('input');
+                    title.type = 'text';
+                    title.value = item.text || '';
+                    title.placeholder = 'グループ名...';
+                    title.className = 'bg-transparent font-bold border-none focus:outline-none w-full text-sm opacity-80';
+                    title.addEventListener('input', (e) => {
+                        item.text = e.target.value;
+                        saveToLocalStorage();
+                    });
+
+                    const delBtn = document.createElement('button');
+                    delBtn.className = 'text-slate-400 hover:text-red-500 p-1 text-xs transition shrink-0';
+                    delBtn.innerHTML = '<i class="fa-solid fa-xmark"></i>';
+                    delBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        state.items = state.items.filter(i => i.id !== item.id);
+                        renderBoard();
+                        saveToLocalStorage();
+                    });
+
+                    header.appendChild(title);
+                    header.appendChild(delBtn);
+                    el.appendChild(header);
+
+                } else if (item.type === 'image') {
+                    if (item.rotation === undefined) item.rotation = 0;
+                    if (item.flipX === undefined) item.flipX = false;
+
+                    const header = document.createElement('div');
+                    header.className = 'absolute top-2 right-2 z-20 flex items-center space-x-1 bg-black/60 backdrop-blur-md rounded-lg p-1 shadow-md';
+
+                    const rotBtn = document.createElement('button');
+                    rotBtn.className = 'text-white/80 hover:text-white px-1.5 py-0.5 text-xs transition';
+                    rotBtn.title = '90°回転';
+                    rotBtn.innerHTML = '<i class="fa-solid fa-rotate-right"></i>';
+                    rotBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        item.rotation = (item.rotation + 90) % 360;
+                        renderBoard();
+                        saveToLocalStorage();
+                    });
+
+                    const flipBtn = document.createElement('button');
+                    flipBtn.className = 'text-white/80 hover:text-white px-1.5 py-0.5 text-xs transition';
+                    flipBtn.title = '左右反転';
+                    flipBtn.innerHTML = '<i class="fa-solid fa-arrows-left-right"></i>';
+                    flipBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        item.flipX = !item.flipX;
+                        renderBoard();
+                        saveToLocalStorage();
+                    });
+
+                    const delBtn = document.createElement('button');
+                    delBtn.className = 'text-white/80 hover:text-red-400 px-1.5 py-0.5 text-xs transition';
+                    delBtn.innerHTML = '<i class="fa-solid fa-xmark"></i>';
+                    delBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        state.items = state.items.filter(i => i.id !== item.id);
+                        renderBoard();
+                        saveToLocalStorage();
+                    });
+
+                    header.appendChild(rotBtn);
+                    header.appendChild(flipBtn);
+                    header.appendChild(delBtn);
+                    el.appendChild(header);
+
+                    const imgContainer = document.createElement('div');
+                    imgContainer.className = 'w-full h-full overflow-hidden rounded-xl flex items-center justify-center';
+
+                    const img = document.createElement('img');
+                    img.src = item.url;
+                    img.className = 'w-full h-full object-cover rounded-xl pointer-events-none transition-transform duration-200';
+                    img.style.transform = `rotate(${item.rotation}deg) scaleX(${item.flipX ? -1 : 1})`;
+                    
+                    imgContainer.appendChild(img);
+                    el.appendChild(imgContainer);
+                }
+
+                // リサイズハンドル
+                const handle = document.createElement('div');
+                handle.className = 'resize-handle';
+                el.appendChild(handle);
+
+                makeItemDraggableAndResizable(el, item, handle);
+                boardCanvas.appendChild(el);
+            });
+        }
+
+        // ドラッグ＆リサイズ処理（グループ枠の拡大縮小・移動時に中のアイテムも連動）
+        function makeItemDraggableAndResizable(el, item, handle) {
+            let isDragging = false;
+            let isResizing = false;
+            let startX, startY, startW, startH, startLeft, startTop;
+            let childItems = [];
+
+            el.addEventListener('pointerdown', (e) => {
+                if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'BUTTON' || e.target.closest('button')) return;
+                
+                state.selectedItemId = item.id;
+                
+                if (item.type !== 'group') {
+                    item.zIndex = ++state.maxZIndex;
+                    el.style.zIndex = item.zIndex;
+                }
+                
+                document.querySelectorAll('.board-item').forEach(iEl => iEl.classList.remove('selected'));
+                el.classList.add('selected');
+
+                if (e.target === handle) {
+                    isResizing = true;
+                } else {
+                    isDragging = true;
+                }
+
+                // グループ枠の場合、中に含まれるアイテムを保持
+                if (item.type === 'group') {
+                    childItems = state.items.filter(other => {
+                        if (other.id === item.id) return false;
+                        return (
+                            other.x >= item.x &&
+                            other.y >= item.y &&
+                            (other.x + other.w) <= (item.x + item.w) &&
+                            (other.y + other.h) <= (item.y + item.h)
+                        );
+                    }).map(child => ({
+                        item: child,
+                        startLeft: child.x,
+                        startTop: child.y,
+                        startW: child.w,
+                        startH: child.h,
+                        el: boardCanvas.querySelector(`[data-id="${child.id}"]`),
+                        relX: (child.x - item.x) / item.w,
+                        relY: (child.y - item.y) / item.h,
+                        relW: child.w / item.w,
+                        relH: child.h / item.h
+                    }));
+                }
+
+                startX = e.clientX;
+                startY = e.clientY;
+                startW = item.w;
+                startH = item.h;
+                startLeft = item.x;
+                startTop = item.y;
+
+                el.setPointerCapture(e.pointerId);
+            });
+
+            el.addEventListener('pointermove', (e) => {
+                if (!isDragging && !isResizing) return;
+
+                const dx = (e.clientX - startX) / state.zoom;
+                const dy = (e.clientY - startY) / state.zoom;
+
+                if (isDragging) {
+                    item.x = Math.max(0, startLeft + dx);
+                    item.y = Math.max(0, startTop + dy);
+                    el.style.left = `${item.x}px`;
+                    el.style.top = `${item.y}px`;
+
+                    if (item.type === 'group' && childItems.length > 0) {
+                        childItems.forEach(child => {
+                            child.item.x = Math.max(0, child.startLeft + dx);
+                            child.item.y = Math.max(0, child.startTop + dy);
+                            if (child.el) {
+                                child.el.style.left = `${child.item.x}px`;
+                                child.el.style.top = `${child.item.y}px`;
+                            }
+                        });
+                    }
+                } else if (isResizing) {
+                    item.w = Math.max(160, startW + dx);
+                    item.h = Math.max(120, startH + dy);
+                    el.style.width = `${item.w}px`;
+                    el.style.height = `${item.h}px`;
+
+                    if (item.type === 'group' && childItems.length > 0) {
+                        childItems.forEach(child => {
+                            child.item.x = item.x + (child.relX * item.w);
+                            child.item.y = item.y + (child.relY * item.h);
+                            child.item.w = Math.max(80, child.relW * item.w);
+                            child.item.h = Math.max(60, child.relH * item.h);
+
+                            if (child.el) {
+                                child.el.style.left = `${child.item.x}px`;
+                                child.el.style.top = `${child.item.y}px`;
+                                child.el.style.width = `${child.item.w}px`;
+                                child.el.style.height = `${child.item.h}px`;
+                            }
+                        });
+                    }
                 }
             });
 
-            document.getElementById('btn-toggle-pen').addEventListener('click', togglePenMode);
-            document.getElementById('pen-size').addEventListener('input', (e) => {
-                state.penSize = parseInt(e.target.value, 10);
+            const stopMove = (e) => {
+                if (isDragging || isResizing) {
+                    isDragging = false;
+                    isResizing = false;
+                    childItems = [];
+                    saveToLocalStorage();
+                }
+            };
+
+            el.addEventListener('pointerup', stopMove);
+            el.addEventListener('pointercancel', stopMove);
+        }
+
+        function disablePenMode() {
+            state.isPenMode = false;
+            drawCanvas.classList.remove('active');
+            document.getElementById('pen-options').classList.add('hidden');
+            document.getElementById('btn-toggle-pen').classList.remove('bg-sky-500', 'text-white');
+        }
+
+        function setupPenDrawing() {
+            let isDrawing = false;
+            let currentPath = [];
+
+            const toggleBtn = document.getElementById('btn-toggle-pen');
+            const penOptions = document.getElementById('pen-options');
+
+            toggleBtn.addEventListener('click', () => {
+                state.isPenMode = !state.isPenMode;
+                if (state.isPenMode) {
+                    drawCanvas.classList.add('active');
+                    penOptions.classList.remove('hidden');
+                    toggleBtn.classList.add('bg-sky-500', 'text-white');
+                } else {
+                    disablePenMode();
+                }
             });
 
             document.getElementById('btn-draw-undo').addEventListener('click', () => {
-                if (state.drawings.length === 0) return;
-                const stroke = state.drawings.pop();
-                state.redoStack.push(stroke);
-                redrawCanvas();
-                saveToLocalStorage();
-                showToast('手書きを1つ戻しました');
+                if (state.drawings.length > 0) {
+                    state.redoStack.push(state.drawings.pop());
+                    redrawCanvas();
+                    saveToLocalStorage();
+                }
             });
 
             document.getElementById('btn-draw-redo').addEventListener('click', () => {
-                if (state.redoStack.length === 0) return;
-                const stroke = state.redoStack.pop();
-                state.drawings.push(stroke);
-                redrawCanvas();
-                saveToLocalStorage();
-                showToast('手書きを復元しました');
+                if (state.redoStack.length > 0) {
+                    state.drawings.push(state.redoStack.pop());
+                    redrawCanvas();
+                    saveToLocalStorage();
+                }
             });
 
             document.getElementById('btn-clear-drawings').addEventListener('click', () => {
-                if (state.drawings.length === 0) return;
-                state.redoStack = [...state.drawings].reverse();
-                state.drawings = [];
+                if (confirm('手書きの線を全消去しますか？')) {
+                    state.drawings = [];
+                    state.redoStack = [];
+                    redrawCanvas();
+                    saveToLocalStorage();
+                }
+            });
+
+            drawCanvas.addEventListener('pointerdown', (e) => {
+                if (!state.isPenMode) return;
+                isDrawing = true;
+                const rect = drawCanvas.getBoundingClientRect();
+                const x = (e.clientX - rect.left) / state.zoom;
+                const y = (e.clientY - rect.top) / state.zoom;
+                currentPath = [{ x, y }];
+            });
+
+            drawCanvas.addEventListener('pointermove', (e) => {
+                if (!isDrawing || !state.isPenMode) return;
+                const rect = drawCanvas.getBoundingClientRect();
+                const x = (e.clientX - rect.left) / state.zoom;
+                const y = (e.clientY - rect.top) / state.zoom;
+                currentPath.push({ x, y });
                 redrawCanvas();
-                saveToLocalStorage();
-                showToast('手書きをすべて消去しました');
+                drawCurrentPath(currentPath);
+            });
+
+            const stopDraw = () => {
+                if (!isDrawing) return;
+                isDrawing = false;
+                if (currentPath.length > 1) {
+                    state.drawings.push({
+                        color: state.selectedHex,
+                        size: parseInt(document.getElementById('pen-size').value) || 4,
+                        points: currentPath
+                    });
+                    state.redoStack = [];
+                    saveToLocalStorage();
+                }
+                currentPath = [];
+            };
+
+            drawCanvas.addEventListener('pointerup', stopDraw);
+            drawCanvas.addEventListener('pointercancel', stopDraw);
+        }
+
+        function drawCurrentPath(path) {
+            if (path.length < 2) return;
+            ctx.beginPath();
+            ctx.strokeStyle = state.selectedHex;
+            ctx.lineWidth = parseInt(document.getElementById('pen-size').value) || 4;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.moveTo(path[0].x, path[0].y);
+            for (let i = 1; i < path.length; i++) {
+                ctx.lineTo(path[i].x, path[i].y);
+            }
+            ctx.stroke();
+        }
+
+        function redrawCanvas() {
+            ctx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
+            state.drawings.forEach(d => {
+                if (!d.points || d.points.length < 2) return;
+                ctx.beginPath();
+                ctx.strokeStyle = d.color || '#000';
+                ctx.lineWidth = d.size || 4;
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                ctx.moveTo(d.points[0].x, d.points[0].y);
+                for (let i = 1; i < d.points.length; i++) {
+                    ctx.lineTo(d.points[i].x, d.points[i].y);
+                }
+                ctx.stroke();
+            });
+        }
+
+        // ★ドラッグ＆ドロップでも複数画像を一括追加できるように対応
+        function setupDragAndDrop() {
+            boardContainer.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                boardContainer.classList.add('drag-over');
+            });
+
+            boardContainer.addEventListener('dragleave', () => {
+                boardContainer.classList.remove('drag-over');
+            });
+
+            boardContainer.addEventListener('drop', (e) => {
+                e.preventDefault();
+                boardContainer.classList.remove('drag-over');
+                
+                const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+                if (files.length > 0) {
+                    const rect = boardContainer.getBoundingClientRect();
+                    const baseScrollX = (e.clientX - rect.left + boardContainer.scrollLeft) / state.zoom;
+                    const baseScrollY = (e.clientY - rect.top + boardContainer.scrollTop) / state.zoom;
+
+                    files.forEach((file, index) => {
+                        const reader = new FileReader();
+                        reader.onload = (event) => {
+                            const offsetX = (index % 5) * 30;
+                            const offsetY = Math.floor(index / 5) * 30;
+                            addImageItem(baseScrollX + offsetX, baseScrollY + offsetY, event.target.result);
+                        };
+                        reader.readAsDataURL(file);
+                    });
+                    showToast(`${files.length}枚の画像を追加しました`);
+                }
             });
         }
 
         function setupZoomAndScroll() {
-            const btnIn = document.getElementById('btn-zoom-in');
-            const btnOut = document.getElementById('btn-zoom-out');
-            const btnReset = document.getElementById('btn-zoom-reset');
-
-            btnIn.addEventListener('click', () => setZoom(state.zoom + 0.15));
-            btnOut.addEventListener('click', () => setZoom(state.zoom - 0.15));
-            btnReset.addEventListener('click', () => setZoom(1.0));
-
-            boardContainer.addEventListener('wheel', (e) => {
-                if (e.ctrlKey || e.metaKey) {
-                    e.preventDefault();
-                    const delta = e.deltaY < 0 ? 0.1 : -0.1;
-                    setZoom(state.zoom + delta);
-                }
-            }, { passive: false });
-
-            boardContainer.addEventListener('scroll', () => {
-                saveToLocalStorage();
+            document.getElementById('btn-zoom-in').addEventListener('click', () => {
+                state.zoom = Math.min(2.0, state.zoom + 0.1);
+                applyZoom();
             });
-        }
-
-        function setZoom(newZoom) {
-            state.zoom = Math.min(2.0, Math.max(0.4, newZoom));
-            applyZoom();
-            saveToLocalStorage();
-            showToast(`ズーム: ${Math.round(state.zoom * 100)}%`);
+            document.getElementById('btn-zoom-out').addEventListener('click', () => {
+                state.zoom = Math.max(0.4, state.zoom - 0.1);
+                applyZoom();
+            });
+            document.getElementById('btn-zoom-reset').addEventListener('click', () => {
+                state.zoom = 1.0;
+                applyZoom();
+            });
         }
 
         function applyZoom() {
@@ -761,689 +1272,38 @@
             document.getElementById('btn-zoom-reset').textContent = `${Math.round(state.zoom * 100)}%`;
         }
 
-        function setupDragAndDrop() {
-            boardContainer.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                boardContainer.classList.add('drag-over');
-            });
-
-            boardContainer.addEventListener('dragleave', (e) => {
-                e.preventDefault();
-                boardContainer.classList.remove('drag-over');
-            });
-
-            boardContainer.addEventListener('drop', (e) => {
-                e.preventDefault();
-                boardContainer.classList.remove('drag-over');
-
-                const files = e.dataTransfer.files;
-                if (!files || files.length === 0) return;
-
-                const rect = boardCanvas.getBoundingClientRect();
-                const dropX = (e.clientX - rect.left) / state.zoom;
-                const dropY = (e.clientY - rect.top) / state.zoom;
-
-                let offset = 0;
-                for (let i = 0; i < files.length; i++) {
-                    const file = files[i];
-                    if (!file.type.startsWith('image/')) continue;
-
-                    const reader = new FileReader();
-                    reader.onload = function(event) {
-                        const img = new Image();
-                        img.onload = function() {
-                            let w = img.width;
-                            let h = img.height;
-                            const maxInitW = 320;
-                            if (w > maxInitW) {
-                                h = Math.round(h * (maxInitW / w));
-                                w = maxInitW;
-                            }
-                            addImageItem(dropX + offset, dropY + offset, event.target.result, w, h);
-                            offset += 30;
-                            showToast('画像をドロップして追加しました');
-                        };
-                        img.src = event.target.result;
-                    };
-                    reader.readAsDataURL(file);
-                }
-            });
-        }
-
-        function setupPenDrawing() {
-            let isDrawing = false;
-            let currentPath = null;
-
-            drawCanvas.addEventListener('pointerdown', (e) => {
-                if (!state.isPenMode) return;
-                isDrawing = true;
-
-                const rect = drawCanvas.getBoundingClientRect();
-                const x = Math.round((e.clientX - rect.left) / state.zoom);
-                const y = Math.round((e.clientY - rect.top) / state.zoom);
-
-                currentPath = {
-                    color: state.selectedHex,
-                    size: state.penSize,
-                    points: [{x, y}]
-                };
-
-                ctx.beginPath();
-                ctx.strokeStyle = state.selectedHex;
-                ctx.lineWidth = state.penSize;
-                ctx.lineCap = 'round';
-                ctx.lineJoin = 'round';
-                ctx.moveTo(x, y);
-
-                drawCanvas.setPointerCapture(e.pointerId);
-            });
-
-            drawCanvas.addEventListener('pointermove', (e) => {
-                if (!isDrawing || !currentPath) return;
-
-                const rect = drawCanvas.getBoundingClientRect();
-                const x = Math.round((e.clientX - rect.left) / state.zoom);
-                const y = Math.round((e.clientY - rect.top) / state.zoom);
-
-                currentPath.points.push({x, y});
-                ctx.lineTo(x, y);
-                ctx.stroke();
-            });
-
-            const stopDrawing = (e) => {
-                if (!isDrawing) return;
-                isDrawing = false;
-                if (currentPath && currentPath.points.length > 1) {
-                    state.drawings.push(currentPath);
-                    state.redoStack = [];
-                    saveToLocalStorage();
-                }
-                currentPath = null;
-                try { drawCanvas.releasePointerCapture(e.pointerId); } catch(err){}
-            };
-
-            drawCanvas.addEventListener('pointerup', stopDrawing);
-            drawCanvas.addEventListener('pointercancel', stopDrawing);
-        }
-
-        function togglePenMode() {
-            state.isPenMode = !state.isPenMode;
-            const btn = document.getElementById('btn-toggle-pen');
-            const penOptions = document.getElementById('pen-options');
-
-            if (state.isPenMode) {
-                btn.classList.add('bg-sky-500', 'text-white');
-                btn.classList.remove('bg-slate-100', 'dark:bg-slate-700', 'text-slate-700', 'dark:text-slate-200');
-                drawCanvas.classList.add('active');
-                penOptions.classList.remove('hidden');
-                deselectAll();
-                showToast('ペンツールを有効にしました');
-            } else {
-                disablePenMode();
-            }
-        }
-
-        function disablePenMode() {
-            state.isPenMode = false;
-            const btn = document.getElementById('btn-toggle-pen');
-            const penOptions = document.getElementById('pen-options');
-            btn.classList.remove('bg-sky-500', 'text-white');
-            btn.classList.add('bg-slate-100', 'dark:bg-slate-700', 'text-slate-700', 'dark:text-slate-200');
-            drawCanvas.classList.remove('active');
-            penOptions.classList.add('hidden');
-        }
-
-        function redrawCanvas() {
-            ctx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
-            state.drawings.forEach(path => {
-                if (!path.points || path.points.length < 2) return;
-                ctx.beginPath();
-                ctx.strokeStyle = path.color;
-                ctx.lineWidth = path.size;
-                ctx.lineCap = 'round';
-                ctx.lineJoin = 'round';
-                ctx.moveTo(path.points[0].x, path.points[0].y);
-                for (let i = 1; i < path.points.length; i++) {
-                    ctx.lineTo(path.points[i].x, path.points[i].y);
-                }
-                ctx.stroke();
-            });
-        }
-
-        function addStickyNote(x = 100, y = 100, text = "新しいアイデア", color = state.selectedColor, width = 220, height = 180) {
-            const item = {
-                id: 'item_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
-                type: 'note',
-                x,
-                y,
-                width,
-                height,
-                text,
-                color,
-                zIndex: ++state.maxZIndex
-            };
-            state.items.push(item);
-            renderItem(item);
-            saveToLocalStorage();
-        }
-
-        function addImageItem(x = 100, y = 100, src, width = 300, height = 220) {
-            const item = {
-                id: 'item_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
-                type: 'image',
-                x,
-                y,
-                width,
-                height,
-                src,
-                flipped: false,
-                rotation: 0,
-                zIndex: ++state.maxZIndex
-            };
-            state.items.push(item);
-            renderItem(item);
-            saveToLocalStorage();
-        }
-
-        function addGroupItem(x = 80, y = 80, title = "グループセクション", color = state.selectedColor, width = 500, height = 380) {
-            const item = {
-                id: 'item_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
-                type: 'group',
-                x,
-                y,
-                width,
-                height,
-                title,
-                color,
-                zIndex: 1
-            };
-            state.items.unshift(item);
-            renderItem(item);
-            saveToLocalStorage();
-            showToast('グループ枠を追加しました');
-        }
-
-        function handleImageUpload(e) {
-            const file = e.target.files[0];
-            if (!file) return;
-
-            const reader = new FileReader();
-            reader.onload = function(event) {
-                const img = new Image();
-                img.onload = function() {
-                    let w = img.width;
-                    let h = img.height;
-                    const maxInitW = 320;
-                    if (w > maxInitW) {
-                        h = Math.round(h * (maxInitW / w));
-                        w = maxInitW;
-                    }
-
-                    const scrollX = boardContainer.scrollLeft / state.zoom + 120;
-                    const scrollY = boardContainer.scrollTop / state.zoom + 120;
-                    addImageItem(scrollX, scrollY, event.target.result, w, h);
-
-                    document.getElementById('image-modal').classList.add('hidden');
-                    e.target.value = '';
-                    showToast('高画質画像を配置しました');
-                };
-                img.src = event.target.result;
-            };
-            reader.readAsDataURL(file);
-        }
-
-        function renderItem(item) {
-            const el = document.createElement('div');
-            el.id = item.id;
-            el.dataset.type = item.type;
-            el.style.left = `${item.x}px`;
-            el.style.top = `${item.y}px`;
-            el.style.width = `${item.width}px`;
-            el.style.height = `${item.height}px`;
-            el.style.zIndex = item.zIndex;
-
-            if (item.type === 'note') {
-                el.className = `board-item absolute p-3 rounded-2xl border shadow-md flex flex-col justify-between group ${colorPresets[item.color] || colorPresets.yellow}`;
-                el.innerHTML = `
-                    <div class="flex items-center justify-between pb-2 mb-1 border-b border-black/10 dark:border-white/10 handle cursor-move">
-                        <i class="fa-solid fa-grip-dots text-slate-400 dark:text-slate-500 text-xs"></i>
-                        <button type="button" class="btn-delete hover:text-red-500 transition p-1 text-slate-400 cursor-pointer">
-                            <i class="fa-solid fa-xmark text-sm pointer-events-none"></i>
-                        </button>
-                    </div>
-                    <textarea class="item-textarea w-full h-full bg-transparent resize-none focus:outline-none font-medium leading-relaxed" placeholder="テキストを入力...">${escapeHtml(item.text)}</textarea>
-                    <div class="resize-handle"></div>
-                `;
-            } else if (item.type === 'image') {
-                el.className = `board-item absolute p-2 rounded-2xl border shadow-md flex flex-col justify-between group bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 cursor-move`;
-                
-                const transformStyles = [];
-                if (item.flipped) transformStyles.push('scaleX(-1)');
-                if (item.rotation) transformStyles.push(`rotate(${item.rotation}deg)`);
-                const transformValue = transformStyles.join(' ') || 'none';
-
-                el.innerHTML = `
-                    <div class="flex items-center space-x-1 absolute top-3 right-3 z-10 bg-black/60 backdrop-blur-sm rounded-full px-2 py-1 text-white opacity-0 group-hover:opacity-100 transition">
-                        <button type="button" class="btn-flip hover:text-sky-300 transition px-1 cursor-pointer" title="左右反転">
-                            <i class="fa-solid fa-arrows-left-right text-xs pointer-events-none"></i>
-                        </button>
-                        <button type="button" class="btn-rotate hover:text-sky-300 transition px-1 cursor-pointer" title="90°回転">
-                            <i class="fa-solid fa-rotate-right text-xs pointer-events-none"></i>
-                        </button>
-                        <button type="button" class="btn-delete hover:text-red-300 transition px-1 cursor-pointer" title="削除">
-                            <i class="fa-solid fa-trash text-xs pointer-events-none"></i>
-                        </button>
-                    </div>
-                    <div class="w-full h-full overflow-hidden rounded-xl flex items-center justify-center bg-slate-100 dark:bg-slate-900 pointer-events-none">
-                        <img src="${item.src}" class="w-full h-full object-contain transition-transform duration-150" style="transform: ${transformValue};" alt="Idea attachment" />
-                    </div>
-                    <div class="resize-handle"></div>
-                `;
-
-                const flipBtn = el.querySelector('.btn-flip');
-                const rotateBtn = el.querySelector('.btn-rotate');
-                const imgEl = el.querySelector('img');
-
-                if (flipBtn) {
-                    flipBtn.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        item.flipped = !item.flipped;
-                        updateImageTransform(imgEl, item);
-                        saveToLocalStorage();
-                        showToast(item.flipped ? '画像を左右反転しました' : '反転を解除しました');
-                    });
-                }
-
-                if (rotateBtn) {
-                    rotateBtn.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        item.rotation = (item.rotation + 90) % 360;
-                        updateImageTransform(imgEl, item);
-                        saveToLocalStorage();
-                        showToast(`画像を ${item.rotation}° 回転しました`);
-                    });
-                }
-            } else if (item.type === 'group') {
-                el.className = `board-item absolute p-3 rounded-3xl border-2 border-dashed flex flex-col justify-between group ${groupColorPresets[item.color] || groupColorPresets.blue}`;
-                el.innerHTML = `
-                    <div class="flex items-center justify-between pb-2 border-b border-black/10 dark:border-white/10 handle cursor-move">
-                        <div class="flex items-center space-x-2">
-                            <i class="fa-solid fa-layer-group text-slate-400 text-sm"></i>
-                            <input type="text" class="group-title-input font-bold bg-transparent focus:outline-none text-sm text-slate-700 dark:text-slate-200" value="${escapeHtml(item.title)}" placeholder="グループ名..." />
-                        </div>
-                        <button type="button" class="btn-delete hover:text-red-500 transition p-1 text-slate-400 cursor-pointer">
-                            <i class="fa-solid fa-xmark text-sm pointer-events-none"></i>
-                        </button>
-                    </div>
-                    <div class="flex-1 pointer-events-none"></div>
-                    <div class="resize-handle"></div>
-                `;
-
-                const groupTitleInput = el.querySelector('.group-title-input');
-                if (groupTitleInput) {
-                    groupTitleInput.addEventListener('input', (e) => {
-                        item.title = e.target.value;
-                        saveToLocalStorage();
-                    });
-                }
-            }
-
-            makeDraggableAndResizable(el, item);
-
-            const textarea = el.querySelector('.item-textarea');
-            if (textarea) {
-                textarea.addEventListener('input', (e) => {
-                    item.text = e.target.value;
-                    saveToLocalStorage();
-                });
-            }
-
-            const deleteBtn = el.querySelector('.btn-delete');
-            if (deleteBtn) {
-                deleteBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    deleteItem(item.id);
-                });
-            }
-
-            if (item.type === 'group') {
-                boardCanvas.prepend(el);
-            } else {
-                boardCanvas.appendChild(el);
-            }
-        }
-
-        function updateImageTransform(imgEl, item) {
-            const transformStyles = [];
-            if (item.flipped) transformStyles.push('scaleX(-1)');
-            if (item.rotation) transformStyles.push(`rotate(${item.rotation}deg)`);
-            imgEl.style.transform = transformStyles.join(' ') || 'none';
-        }
-
-        function deleteItem(id) {
-            state.items = state.items.filter(i => i.id !== id);
-            const el = document.getElementById(id);
-            if (el) el.remove();
-            saveToLocalStorage();
-            showToast('アイテムを削除しました');
-        }
-
-        function deselectAll() {
-            document.querySelectorAll('.board-item').forEach(el => el.classList.remove('selected'));
-            state.selectedItemId = null;
-        }
-
-        function makeDraggableAndResizable(el, item) {
-            let isDragging = false;
-            let isResizing = false;
-            let startX, startY, initialX, initialY, initialW, initialH;
-            let childItems = [];
-
-            const handle = el.querySelector('.handle') || el;
-            const resizeHandle = el.querySelector('.resize-handle');
-
-            el.addEventListener('pointerdown', (e) => {
-                if (state.isPenMode) return;
-                deselectAll();
-                el.classList.add('selected');
-                state.selectedItemId = item.id;
-
-                if (item.type !== 'group') {
-                    item.zIndex = ++state.maxZIndex;
-                    el.style.zIndex = item.zIndex;
-                }
-            });
-
-            // Dragging
-            handle.addEventListener('pointerdown', (e) => {
-                if (state.isPenMode || e.target.closest('.btn-delete') || e.target.closest('.btn-flip') || e.target.closest('.btn-rotate') || e.target.closest('textarea') || e.target.closest('input')) return;
-                isDragging = true;
-                startX = e.clientX;
-                startY = e.clientY;
-                initialX = item.x;
-                initialY = item.y;
-
-                if (item.type === 'group') {
-                    childItems = state.items.filter(other => {
-                        if (other.id === item.id) return false;
-                        return (
-                            other.x >= item.x &&
-                            other.y >= item.y &&
-                            (other.x + other.width) <= (item.x + item.width) &&
-                            (other.y + other.height) <= (item.y + item.height)
-                        );
-                    }).map(other => {
-                        return {
-                            item: other,
-                            el: document.getElementById(other.id),
-                            initialX: other.x,
-                            initialY: other.y
-                        };
-                    });
-                }
-
-                handle.setPointerCapture(e.pointerId);
-                e.stopPropagation();
-            });
-
-            handle.addEventListener('pointermove', (e) => {
-                if (!isDragging) return;
-                const dx = (e.clientX - startX) / state.zoom;
-                const dy = (e.clientY - startY) / state.zoom;
-
-                item.x = Math.max(0, initialX + dx);
-                item.y = Math.max(0, initialY + dy);
-                el.style.left = `${item.x}px`;
-                el.style.top = `${item.y}px`;
-
-                if (item.type === 'group' && childItems.length > 0) {
-                    childItems.forEach(child => {
-                        child.item.x = Math.max(0, child.initialX + dx);
-                        child.item.y = Math.max(0, child.initialY + dy);
-                        if (child.el) {
-                            child.el.style.left = `${child.item.x}px`;
-                            child.el.style.top = `${child.item.y}px`;
-                        }
-                    });
-                }
-            });
-
-            const stopDrag = (e) => {
-                if (isDragging) {
-                    isDragging = false;
-                    childItems = [];
-                    try { handle.releasePointerCapture(e.pointerId); } catch(err){}
-                    saveToLocalStorage();
-                }
-            };
-            handle.addEventListener('pointerup', stopDrag);
-            handle.addEventListener('pointercancel', stopDrag);
-
-            // Resizing
-            if (resizeHandle) {
-                resizeHandle.addEventListener('pointerdown', (e) => {
-                    if (state.isPenMode) return;
-                    isResizing = true;
-                    startX = e.clientX;
-                    startY = e.clientY;
-                    initialW = item.width;
-                    initialH = item.height;
-                    initialX = item.x;
-                    initialY = item.y;
-
-                    if (item.type === 'group') {
-                        childItems = state.items.filter(other => {
-                            if (other.id === item.id) return false;
-                            return (
-                                other.x >= item.x &&
-                                other.y >= item.y &&
-                                (other.x + other.width) <= (item.x + item.width) &&
-                                (other.y + other.height) <= (item.y + item.height)
-                            );
-                        }).map(other => {
-                            return {
-                                item: other,
-                                el: document.getElementById(other.id),
-                                relX: (other.x - item.x) / item.width,
-                                relY: (other.y - item.y) / item.height,
-                                relW: other.width / item.width,
-                                relH: other.height / item.height
-                            };
-                        });
-                    }
-
-                    resizeHandle.setPointerCapture(e.pointerId);
-                    e.stopPropagation();
-                });
-
-                resizeHandle.addEventListener('pointermove', (e) => {
-                    if (!isResizing) return;
-                    const dw = (e.clientX - startX) / state.zoom;
-                    const dh = (e.clientY - startY) / state.zoom;
-
-                    const newWidth = Math.max(item.type === 'group' ? 240 : 160, initialW + dw);
-                    const newHeight = Math.max(item.type === 'group' ? 180 : 120, initialH + dh);
-
-                    if (item.type === 'group' && childItems.length > 0) {
-                        childItems.forEach(child => {
-                            child.item.x = Math.round(item.x + (child.relX * newWidth));
-                            child.item.y = Math.round(item.y + (child.relY * newHeight));
-                            child.item.width = Math.round(child.relW * newWidth);
-                            child.item.height = Math.round(child.relH * newHeight);
-                            
-                            if (child.item.type === 'note' || child.item.type === 'group') {
-                                child.item.width = Math.max(160, child.item.width);
-                                child.item.height = Math.max(120, child.item.height);
-                            } else if (child.item.type === 'image') {
-                                child.item.width = Math.max(40, child.item.width);
-                                child.item.height = Math.max(40, child.item.height);
-                            }
-
-                            if (child.el) {
-                                child.el.style.left = `${child.item.x}px`;
-                                child.el.style.top = `${child.item.y}px`;
-                                child.el.style.width = `${child.item.width}px`;
-                                child.el.style.height = `${child.item.height}px`;
-                            }
-                        });
-                    }
-
-                    item.width = newWidth;
-                    item.height = newHeight;
-                    el.style.width = `${item.width}px`;
-                    el.style.height = `${item.height}px`;
-                });
-
-                const stopResize = (e) => {
-                    if (isResizing) {
-                        isResizing = false;
-                        childItems = [];
-                        try { resizeHandle.releasePointerCapture(e.pointerId); } catch(err){}
-                        saveToLocalStorage();
-                    }
-                };
-                resizeHandle.addEventListener('pointerup', stopResize);
-                resizeHandle.addEventListener('pointercancel', stopResize);
-            }
-        }
-
-        function renderBoard() {
-            document.querySelectorAll('.board-item').forEach(el => el.remove());
-            
-            const groups = state.items.filter(i => i.type === 'group');
-            const others = state.items.filter(i => i.type !== 'group');
-
-            groups.forEach(item => renderItem(item));
-            others.forEach(item => renderItem(item));
-
-            boardTitleInput.value = state.title;
-        }
-
-        function generateShareURL() {
-            try {
-                const data = {
-                    title: state.title,
-                    items: state.items,
-                    drawings: state.drawings
-                };
-                const jsonString = JSON.stringify(data);
-                const compressed = LZString.compressToEncodedURIComponent(jsonString);
-                
-                const url = new URL(window.location.href);
-                url.searchParams.set('data', compressed);
-                
-                navigator.clipboard.writeText(url.toString()).then(() => {
-                    showToast('共有用URLをクリップボードにコピーしました！');
-                }).catch(() => {
-                    prompt("以下のURLをコピーしてください:", url.toString());
-                });
-            } catch (e) {
-                console.error(e);
-                alert('URL生成に失敗しました');
-            }
-        }
-
         function loadBoardFromURL() {
-            try {
-                const params = new URLSearchParams(window.location.search);
-                const compressed = params.get('data');
-                if (!compressed) return false;
-
-                const jsonString = LZString.decompressFromEncodedURIComponent(compressed);
-                if (!jsonString) return false;
-
-                const data = JSON.parse(jsonString);
-                const shareId = 'shared_' + Date.now();
-                
-                appState.boards[shareId] = {
-                    id: shareId,
-                    title: data.title || "共有されたアイデアボード",
-                    items: data.items || [],
-                    drawings: data.drawings || [],
-                    maxZIndex: 10,
-                    zoom: 1.0,
-                    scrollX: 0,
-                    scrollY: 0,
-                    updatedAt: new Date().toISOString()
-                };
-
-                switchBoard(shareId);
-                saveToLocalStorage();
-                showToast('共有ボードを読み込みました');
-                return true;
-            } catch (e) {
-                console.error("URL load failed:", e);
-                return false;
-            }
-        }
-
-        function exportJSON() {
-            const data = {
-                title: state.title,
-                items: state.items,
-                drawings: state.drawings,
-                version: "2.0",
-                exportedAt: new Date().toISOString()
-            };
-            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `${state.title || 'ideacanvas'}.json`;
-            a.click();
-            URL.revokeObjectURL(url);
-            showToast('JSONファイルとして保存しました');
-        }
-
-        function importJSON(e) {
-            const file = e.target.files[0];
-            if (!file) return;
-
-            const reader = new FileReader();
-            reader.onload = function(event) {
+            const hash = window.location.hash;
+            if (hash.startsWith('#data=')) {
                 try {
-                    const data = JSON.parse(event.target.result);
-                    const importId = 'board_' + Date.now();
-                    
-                    appState.boards[importId] = {
-                        id: importId,
-                        title: data.title || "インポートしたボード",
+                    const jsonStr = LZString.decompressFromEncodedURIComponent(hash.substring(6));
+                    const data = JSON.parse(jsonStr);
+                    const newId = 'board_' + Date.now();
+                    appState.boards[newId] = {
+                        id: newId,
+                        title: data.title || "共有ボード",
                         items: data.items || [],
                         drawings: data.drawings || [],
                         maxZIndex: 10,
-                        zoom: 1.0,
-                        scrollX: 0,
-                        scrollY: 0,
-                        updatedAt: new Date().toISOString()
+                        zoom: 1.0
                     };
-
-                    switchBoard(importId);
-                    saveToLocalStorage();
-                    e.target.value = '';
-                    showToast('JSONファイルを新規ボードとして読み込みました');
-                } catch (err) {
-                    alert('無効なJSONファイルです');
+                    switchBoard(newId);
+                    history.replaceState(null, null, window.location.pathname);
+                    showToast('共有されたボードを読み込みました！');
+                    return true;
+                } catch (e) {
+                    console.error("URL load failed", e);
                 }
-            };
-            reader.readAsText(file);
-        }
-
-        function escapeHtml(str) {
-            if (!str) return '';
-            return str.replace(/&/g, "&amp;")
-                      .replace(/</g, "&lt;")
-                      .replace(/>/g, "&gt;")
-                      .replace(/"/g, "&quot;")
-                      .replace(/'/g, "&#039;");
+            }
+            return false;
         }
 
         function showToast(message) {
             const toast = document.getElementById('toast');
-            const msgEl = document.getElementById('toast-message');
-            msgEl.textContent = message;
-            toast.classList.remove('translate-y-10', 'opacity-0', 'pointer-events-none');
+            document.getElementById('toast-message').textContent = message;
+            toast.classList.remove('translate-y-10', 'opacity-0');
             setTimeout(() => {
-                toast.classList.add('translate-y-10', 'opacity-0', 'pointer-events-none');
+                toast.classList.add('translate-y-10', 'opacity-0');
             }, 3000);
         }
     </script>
