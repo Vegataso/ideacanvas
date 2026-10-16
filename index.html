@@ -1639,4 +1639,29 @@
                         id: newId,
                         title: data.title || "共有ボード",
                         items: data.items || [],
-           
+                        drawings: data.drawings || [],
+                        maxZIndex: 10,
+                        zoom: 1.0
+                    };
+                    switchBoard(newId);
+                    history.replaceState(null, null, window.location.pathname);
+                    showToast('共有されたボードを読み込みました！');
+                    return true;
+                } catch (e) {
+                    console.error("URL load failed", e);
+                }
+            }
+            return false;
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toast-message').textContent = message;
+            toast.classList.remove('translate-y-10', 'opacity-0');
+            setTimeout(() => {
+                toast.classList.add('translate-y-10', 'opacity-0');
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
