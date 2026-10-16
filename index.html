@@ -953,8 +953,13 @@
                 h = Math.round(h * ratio);
             }
 
-            w = Math.max(120, w);
-            h = Math.max(90, h);
+            // Keep the original aspect ratio even for small images.
+            // Applying independent minimums can distort the frame ratio.
+            const minScale = Math.max(120 / Math.max(1, w), 90 / Math.max(1, h));
+            if (w < 120 || h < 90) {
+                w = Math.round(w * minScale);
+                h = Math.round(h * minScale);
+            }
 
             const item = {
                 id: 'item_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
@@ -1166,6 +1171,7 @@
                     const img = document.createElement('img');
                     img.src = item.url;
                     img.className = 'object-contain rounded-xl pointer-events-none transition-transform duration-200';
+                    img.style.objectFit = 'contain';
                     img.style.position = 'absolute';
                     img.style.left = '50%';
                     img.style.top = '50%';
@@ -1178,9 +1184,13 @@
                     const applyImageTransform = () => {
                         // The frame swaps dimensions on quarter-turns; swap the image's CSS box back
                         // before rotation so the visible image keeps the same scale.
-                        const rotated = item.rotation === 90 || item.rotation === 270;
-                        img.style.width = `${rotated ? item.h : item.w}px`;
-                        img.style.height = `${rotated ? item.w : item.h}px`;
+                        const rotated = Math.abs(item.rotation % 180) === 90;
+                        // Use the actual inner viewport, not the outer frame dimensions.
+                        // The frame has padding, so sizing the image to item.w/item.h clips it.
+                        const viewportW = imgContainer.clientWidth || Math.max(1, item.w - 34);
+                        const viewportH = imgContainer.clientHeight || Math.max(1, item.h - 34);
+                        img.style.width = `${rotated ? viewportH : viewportW}px`;
+                        img.style.height = `${rotated ? viewportW : viewportH}px`;
                         // Pan is applied in screen pixels; zoom changes only the image, not its frame.
                         img.style.transform = `translate(calc(-50% + ${item.imagePanX}px), calc(-50% + ${item.imagePanY}px)) rotate(${item.rotation}deg) scaleX(${item.flipX ? -1 : 1}) scale(${item.imageZoom || 1})`;
                     };
@@ -1284,6 +1294,8 @@
 
                     imgContainer.appendChild(img);
                     el.appendChild(imgContainer);
+                    // Recalculate after insertion so iPad/Safari uses the real rendered frame size.
+                    requestAnimationFrame(applyImageTransform);
                 }
 
                 const handle = document.createElement('div');
@@ -1627,29 +1639,4 @@
                         id: newId,
                         title: data.title || "共有ボード",
                         items: data.items || [],
-                        drawings: data.drawings || [],
-                        maxZIndex: 10,
-                        zoom: 1.0
-                    };
-                    switchBoard(newId);
-                    history.replaceState(null, null, window.location.pathname);
-                    showToast('共有されたボードを読み込みました！');
-                    return true;
-                } catch (e) {
-                    console.error("URL load failed", e);
-                }
-            }
-            return false;
-        }
-
-        function showToast(message) {
-            const toast = document.getElementById('toast');
-            document.getElementById('toast-message').textContent = message;
-            toast.classList.remove('translate-y-10', 'opacity-0');
-            setTimeout(() => {
-                toast.classList.add('translate-y-10', 'opacity-0');
-            }, 3000);
-        }
-    </script>
-</body>
-</html>
+           
