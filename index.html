@@ -436,20 +436,41 @@
             setupPinchZoom();
             initMultiBoardStorage();
             
-            // ブラウザ標準のピンチズーム（ページ全体の拡大）を完全ブロック
             document.addEventListener('gesturestart', (e) => e.preventDefault());
             document.addEventListener('gesturechange', (e) => e.preventDefault());
             document.addEventListener('gestureend', (e) => e.preventDefault());
         });
 
+        // ボード全体・アイテム単位のピンチズーム共通制御
         function setupPinchZoom() {
             let activeTouches = new Map();
             let initialDist = 0;
             let initialZoom = 1.0;
+            let initialItemW = 0;
+            let initialItemH = 0;
+            let targetItem = null;
 
             boardContainer.addEventListener('pointerdown', (e) => {
                 if (e.pointerType === 'touch') {
                     activeTouches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+                    
+                    if (activeTouches.size === 2) {
+                        // 2本指が触れた瞬間、どちらかの指がどのアイテムの上にあるか判定
+                        const touches = Array.from(activeTouches.values());
+                        const itemEl = document.elementFromPoint(touches[0].x, touches[0].y)?.closest('.board-item') ||
+                                       document.elementFromPoint(touches[1].x, touches[1].y)?.closest('.board-item');
+                        
+                        if (itemEl) {
+                            const itemId = itemEl.dataset.id;
+                            targetItem = state.items.find(i => i.id === itemId);
+                            if (targetItem) {
+                                initialItemW = targetItem.w;
+                                initialItemH = targetItem.h;
+                            }
+                        } else {
+                            targetItem = null;
+                        }
+                    }
                 }
             });
 
@@ -458,7 +479,7 @@
                     activeTouches.set(e.pointerId, { x: e.clientX, y: e.clientY });
 
                     if (activeTouches.size === 2) {
-                        e.preventDefault(); // ブラウザ側のデフォルト挙動をブロック
+                        e.preventDefault();
                         const touches = Array.from(activeTouches.values());
                         const dx = touches[0].x - touches[1].x;
                         const dy = touches[0].y - touches[1].y;
@@ -467,13 +488,32 @@
                         if (initialDist === 0) {
                             initialDist = dist;
                             initialZoom = state.zoom;
+                            if (targetItem) {
+                                initialItemW = targetItem.w;
+                                initialItemH = targetItem.h;
+                            }
                         } else if (initialDist > 10) {
                             const scaleFactor = dist / initialDist;
-                            const newZoom = Math.min(2.0, Math.max(0.4, initialZoom * scaleFactor));
-                            
-                            if (newZoom !== state.zoom) {
-                                state.zoom = newZoom;
-                                applyZoom();
+
+                            if (targetItem) {
+                                // 【アイテム単位のピンチズーム】
+                                const newW = Math.max(80, Math.round(initialItemW * scaleFactor));
+                                const newH = Math.max(60, Math.round(initialItemH * scaleFactor));
+                                targetItem.w = newW;
+                                targetItem.h = newH;
+                                
+                                const itemEl = boardCanvas.querySelector(`[data-id="${targetItem.id}"]`);
+                                if (itemEl) {
+                                    itemEl.style.width = `${newW}px`;
+                                    itemEl.style.height = `${newH}px`;
+                                }
+                            } else {
+                                // 【ボード全体のピンチズーム】
+                                const newZoom = Math.min(2.0, Math.max(0.4, initialZoom * scaleFactor));
+                                if (newZoom !== state.zoom) {
+                                    state.zoom = newZoom;
+                                    applyZoom();
+                                }
                             }
                         }
                     }
@@ -484,6 +524,11 @@
                 activeTouches.delete(e.pointerId);
                 if (activeTouches.size < 2) {
                     initialDist = 0;
+                    if (targetItem) {
+                        recordHistory();
+                        saveToLocalStorage();
+                        targetItem = null;
+                    }
                 }
             };
 
