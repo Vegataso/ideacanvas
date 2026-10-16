@@ -39,6 +39,9 @@
             -webkit-user-select: none;
             overflow: hidden;
             touch-action: none;
+            position: fixed;
+            width: 100%;
+            height: 100%;
         }
 
         /* Board Grid Background */
@@ -350,7 +353,6 @@
             zoom: 1.0
         };
 
-        // アンドゥ・リドゥ用履歴管理システム
         let historyStack = [];
         let historyRedoStack = [];
         let isInternalAction = false;
@@ -364,8 +366,8 @@
             const last = historyStack[historyStack.length - 1];
             if (last !== snapshot) {
                 historyStack.push(snapshot);
-                if (historyStack.length > 50) historyStack.shift(); // 最大50世代
-                historyRedoStack = []; // 新規操作時はやり直しスタックをクリア
+                if (historyStack.length > 50) historyStack.shift();
+                historyRedoStack = [];
             }
         }
 
@@ -433,6 +435,11 @@
             setupZoomAndScroll();
             setupPinchZoom();
             initMultiBoardStorage();
+            
+            // ブラウザ標準のピンチズーム（ページ全体の拡大）を完全ブロック
+            document.addEventListener('gesturestart', (e) => e.preventDefault());
+            document.addEventListener('gesturechange', (e) => e.preventDefault());
+            document.addEventListener('gestureend', (e) => e.preventDefault());
         });
 
         function setupPinchZoom() {
@@ -451,6 +458,7 @@
                     activeTouches.set(e.pointerId, { x: e.clientX, y: e.clientY });
 
                     if (activeTouches.size === 2) {
+                        e.preventDefault(); // ブラウザ側のデフォルト挙動をブロック
                         const touches = Array.from(activeTouches.values());
                         const dx = touches[0].x - touches[1].x;
                         const dy = touches[0].y - touches[1].y;
@@ -470,7 +478,7 @@
                         }
                     }
                 }
-            });
+            }, { passive: false });
 
             const clearTouch = (e) => {
                 activeTouches.delete(e.pointerId);
@@ -658,11 +666,9 @@
             document.getElementById('btn-duplicate-board').addEventListener('click', duplicateCurrentBoard);
             document.getElementById('btn-delete-board').addEventListener('click', deleteCurrentBoard);
 
-            // アンドゥ・リドゥボタンのリスナー
             document.getElementById('btn-board-undo').addEventListener('click', undoAction);
             document.getElementById('btn-board-redo').addEventListener('click', redoAction);
 
-            // キーボードショートカット (Ctrl+Z / Ctrl+Y)
             window.addEventListener('keydown', (e) => {
                 if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
                     e.preventDefault();
@@ -721,9 +727,19 @@
                 if (url) {
                     const scrollX = boardContainer.scrollLeft / state.zoom + 120;
                     const scrollY = boardContainer.scrollTop / state.zoom + 120;
-                    addImageItem(scrollX, scrollY, url);
-                    document.getElementById('modal-image-url').value = '';
-                    modal.classList.add('hidden');
+                    
+                    const tempImg = new Image();
+                    tempImg.onload = () => {
+                        addImageWithNaturalSize(scrollX, scrollY, url, tempImg.naturalWidth, tempImg.naturalHeight);
+                        document.getElementById('modal-image-url').value = '';
+                        modal.classList.add('hidden');
+                    };
+                    tempImg.onerror = () => {
+                        addImageItem(scrollX, scrollY, url, 280, 200);
+                        document.getElementById('modal-image-url').value = '';
+                        modal.classList.add('hidden');
+                    };
+                    tempImg.src = url;
                 }
             });
 
@@ -865,7 +881,22 @@
             saveToLocalStorage();
         }
 
-        function addImageItem(x, y, url, w = 280, h = 200) {
+        function addImageWithNaturalSize(x, y, url, naturalW, naturalH) {
+            const MAX_WIDTH = 300;
+            const MAX_HEIGHT = 280;
+            
+            let w = naturalW;
+            let h = naturalH;
+
+            if (w > MAX_WIDTH || h > MAX_HEIGHT) {
+                const ratio = Math.min(MAX_WIDTH / w, MAX_HEIGHT / h);
+                w = Math.round(w * ratio);
+                h = Math.round(h * ratio);
+            }
+
+            w = Math.max(120, w);
+            h = Math.max(90, h);
+
             const item = {
                 id: 'item_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
                 type: 'image',
@@ -881,6 +912,10 @@
             saveToLocalStorage();
         }
 
+        function addImageItem(x, y, url, w = 280, h = 200) {
+            addImageWithNaturalSize(x, y, url, w, h);
+        }
+
         function handleImageUpload(e) {
             const files = Array.from(e.target.files);
             if (!files.length) return;
@@ -893,22 +928,25 @@
                 if (!file.type.startsWith('image/')) return;
                 const reader = new FileReader();
                 reader.onload = (event) => {
-                    const offsetX = (index % 5) * 30;
-                    const offsetY = Math.floor(index / 5) * 30;
-                    addImageItem(baseScrollX + offsetX, baseScrollY + offsetY, event.target.result);
-                    
-                    loadedCount++;
-                    if (loadedCount === files.length) {
-                        document.getElementById('image-modal').classList.add('hidden');
-                        showToast(`${files.length}枚の画像を追加しました`);
-                    }
+                    const img = new Image();
+                    img.onload = () => {
+                        const offsetX = (index % 5) * 30;
+                        const offsetY = Math.floor(index / 5) * 30;
+                        addImageWithNaturalSize(baseScrollX + offsetX, baseScrollY + offsetY, event.target.result, img.naturalWidth, img.naturalHeight);
+                        
+                        loadedCount++;
+                        if (loadedCount === files.length) {
+                            document.getElementById('image-modal').classList.add('hidden');
+                            showToast(`${files.length}枚の画像を適切なサイズで追加しました`);
+                        }
+                    };
+                    img.src = event.target.result;
                 };
                 reader.readAsDataURL(file);
             });
             e.target.value = '';
         }
 
-        // 描画処理
         function renderBoard() {
             const existingItems = boardCanvas.querySelectorAll('.board-item');
             existingItems.forEach(el => el.remove());
@@ -1320,13 +1358,17 @@
                     files.forEach((file, index) => {
                         const reader = new FileReader();
                         reader.onload = (event) => {
-                            const offsetX = (index % 5) * 30;
-                            const offsetY = Math.floor(index / 5) * 30;
-                            addImageItem(baseScrollX + offsetX, baseScrollY + offsetY, event.target.result);
+                            const img = new Image();
+                            img.onload = () => {
+                                const offsetX = (index % 5) * 30;
+                                const offsetY = Math.floor(index / 5) * 30;
+                                addImageWithNaturalSize(baseScrollX + offsetX, baseScrollY + offsetY, event.target.result, img.naturalWidth, img.naturalHeight);
+                            };
+                            img.src = event.target.result;
                         };
                         reader.readAsDataURL(file);
                     });
-                    showToast(`${files.length}枚の画像を追加しました`);
+                    showToast(`${files.length}枚の画像を適切なサイズで追加しました`);
                 }
             });
         }
